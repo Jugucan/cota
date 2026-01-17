@@ -1,0 +1,88 @@
+import { Box3D, BOX_COLORS } from '@/types';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Trash2 } from 'lucide-react';
+
+interface MeasurementSummaryProps {
+  boxes: Box3D[];
+  onSelectBox: (boxId: string) => void;
+  onDeleteBox: (boxId: string) => void;
+  selectedBoxId: string | null;
+}
+
+export function MeasurementSummary({
+  boxes,
+  onSelectBox,
+  onDeleteBox,
+  selectedBoxId,
+}: MeasurementSummaryProps) {
+  if (boxes.length === 0) {
+    return (
+      <div className="text-center py-8 text-muted-foreground">
+        <p>No measurements yet. Add a box to start measuring.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      {boxes.map((box, index) => {
+        const colorInfo = BOX_COLORS.find(c => c.name === box.color) || BOX_COLORS[0];
+        const isSelected = box.id === selectedBoxId;
+        const hasDimensions = box.dimensions.width > 0 || box.dimensions.height > 0 || box.dimensions.depth > 0;
+
+        return (
+          <Card
+            key={box.id}
+            className={`cursor-pointer transition-all duration-200 border-2 ${
+              isSelected ? 'ring-2 ring-primary shadow-elevated' : 'hover:shadow-soft'
+            }`}
+            style={{ borderColor: colorInfo.value }}
+            onClick={() => onSelectBox(box.id)}
+          >
+            <CardContent className="p-4">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-4 h-4 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: colorInfo.value }}
+                  />
+                  <div>
+                    <h4 className="font-semibold text-sm text-foreground">
+                      {box.label || `Box ${index + 1}`}
+                    </h4>
+                    {hasDimensions ? (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        <span className="font-medium">{box.dimensions.width || '—'}</span>
+                        <span className="text-xs mx-1">×</span>
+                        <span className="font-medium">{box.dimensions.height || '—'}</span>
+                        <span className="text-xs mx-1">×</span>
+                        <span className="font-medium">{box.dimensions.depth || '—'}</span>
+                        <span className="text-xs ml-1">cm</span>
+                      </p>
+                    ) : (
+                      <p className="text-sm text-muted-foreground mt-1 italic">
+                        No dimensions set
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteBox(box.id);
+                  }}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
