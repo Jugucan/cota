@@ -262,7 +262,7 @@ export function Box3DEditor({
           onClick={onAddBox}
           className="absolute bottom-4 right-4 gradient-primary text-primary-foreground px-4 py-2 rounded-lg shadow-glow font-medium text-sm flex items-center gap-2"
         >
-          + Add Box
+          + Afegir caixa
         </motion.button>
       )}
     </div>
