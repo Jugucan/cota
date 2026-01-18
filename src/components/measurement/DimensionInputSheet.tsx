@@ -56,89 +56,104 @@ export function DimensionInputSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="h-auto max-h-[80vh] rounded-t-2xl">
-        <SheetHeader className="text-left pb-4">
-          <SheetTitle className="font-display">Editar mesura</SheetTitle>
-          <SheetDescription>
+      <SheetContent 
+        side="bottom" 
+        className="h-auto max-h-[85vh] rounded-t-3xl px-4 sm:px-6 pb-6 overflow-y-auto"
+      >
+        <SheetHeader className="text-left pb-4 pt-2">
+          <SheetTitle className="font-display text-xl">Editar mesura</SheetTitle>
+          <SheetDescription className="text-sm">
             Introdueix les dimensions reals d'aquest objecte
           </SheetDescription>
         </SheetHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-5">
           <div className="space-y-2">
-            <Label htmlFor="label">Etiqueta (opcional)</Label>
+            <Label htmlFor="label" className="text-base font-medium">Etiqueta (opcional)</Label>
             <Input
               id="label"
               placeholder="p. ex., Armari, Moble TV"
               value={label}
               onChange={(e) => setLabel(e.target.value)}
+              className="h-12 text-base"
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-2">
-              <Label htmlFor="width">Amplada (cm)</Label>
-              <Input
-                id="width"
-                type="number"
-                placeholder="0"
-                value={width}
-                onChange={(e) => setWidth(e.target.value)}
-                className="text-center text-lg font-medium"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="height">Alçada (cm)</Label>
-              <Input
-                id="height"
-                type="number"
-                placeholder="0"
-                value={height}
-                onChange={(e) => setHeight(e.target.value)}
-                className="text-center text-lg font-medium"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="depth">Fondària (cm)</Label>
-              <Input
-                id="depth"
-                type="number"
-                placeholder="0"
-                value={depth}
-                onChange={(e) => setDepth(e.target.value)}
-                className="text-center text-lg font-medium"
-              />
+          <div className="space-y-3">
+            <Label className="text-base font-medium">Dimensions (cm)</Label>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="width" className="text-xs text-muted-foreground">Amplada</Label>
+                <Input
+                  id="width"
+                  type="number"
+                  inputMode="decimal"
+                  placeholder="0"
+                  value={width}
+                  onChange={(e) => setWidth(e.target.value)}
+                  className="text-center text-lg font-semibold h-14"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="height" className="text-xs text-muted-foreground">Alçada</Label>
+                <Input
+                  id="height"
+                  type="number"
+                  inputMode="decimal"
+                  placeholder="0"
+                  value={height}
+                  onChange={(e) => setHeight(e.target.value)}
+                  className="text-center text-lg font-semibold h-14"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="depth" className="text-xs text-muted-foreground">Fondària</Label>
+                <Input
+                  id="depth"
+                  type="number"
+                  inputMode="decimal"
+                  placeholder="0"
+                  value={depth}
+                  onChange={(e) => setDepth(e.target.value)}
+                  className="text-center text-lg font-semibold h-14"
+                />
+              </div>
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label>Color de la caixa</Label>
-            <div className="flex gap-2 flex-wrap">
+          <div className="space-y-3">
+            <Label className="text-base font-medium">Color de la caixa</Label>
+            <div className="flex gap-3 flex-wrap justify-center">
               {BOX_COLORS.map((c) => (
                 <button
                   key={c.name}
                   type="button"
                   onClick={() => setColor(c.name)}
                   className={cn(
-                    'w-10 h-10 rounded-full transition-all',
-                    color === c.name ? 'ring-2 ring-offset-2 ring-foreground scale-110' : 'hover:scale-105'
+                    'w-12 h-12 rounded-full transition-all',
+                    color === c.name ? 'ring-4 ring-offset-2 ring-foreground scale-110' : 'hover:scale-105'
                   )}
                   style={{ backgroundColor: c.value }}
+                  aria-label={c.name}
                 />
               ))}
             </div>
           </div>
 
-          <div className="flex gap-3 pt-2">
+          <div className="flex gap-3 pt-4">
             <Button
               variant="outline"
-              className="flex-1"
+              className="flex-1 h-12 text-base"
               onClick={() => onOpenChange(false)}
             >
               Cancel·lar
             </Button>
-            <Button variant="hero" className="flex-1" onClick={handleSave}>
-              Desar dimensions
+            <Button 
+              variant="hero" 
+              className="flex-1 h-12 text-base font-semibold" 
+              onClick={handleSave}
+            >
+              Desar
             </Button>
           </div>
         </div>
