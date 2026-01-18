@@ -19,7 +19,7 @@ export function MeasurementSummary({
   if (boxes.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
-        <p>No measurements yet. Add a box to start measuring.</p>
+        <p>Encara no hi ha mesures. Afegeix una caixa per començar a mesurar.</p>
       </div>
     );
   }
@@ -49,7 +49,7 @@ export function MeasurementSummary({
                   />
                   <div>
                     <h4 className="font-semibold text-sm text-foreground">
-                      {box.label || `Box ${index + 1}`}
+                      {box.label || `Caixa ${index + 1}`}
                     </h4>
                     {hasDimensions ? (
                       <p className="text-sm text-muted-foreground mt-1">
@@ -62,7 +62,7 @@ export function MeasurementSummary({
                       </p>
                     ) : (
                       <p className="text-sm text-muted-foreground mt-1 italic">
-                        No dimensions set
+                        Sense dimensions
                       </p>
                     )}
                   </div>
