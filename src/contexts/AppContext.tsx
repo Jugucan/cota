@@ -1,5 +1,27 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
 import { Space, Measurement, Box3D, User } from '@/types';
+import { 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword,
+  signInWithPopup,
+  signOut,
+  onAuthStateChanged,
+  updateProfile
+} from 'firebase/auth';
+import { 
+  collection, 
+  doc, 
+  getDocs, 
+  addDoc, 
+  updateDoc, 
+  deleteDoc,
+  query,
+  where,
+  orderBy,
+  Timestamp,
+  setDoc
+} from 'firebase/firestore';
+import { auth, db, googleProvider } from '@/lib/firebase';
 
 // Simple UUID generator
 const generateId = (): string => {
@@ -8,49 +30,6 @@ const generateId = (): string => {
     const v = c === 'x' ? r : (r & 0x3 | 0x8);
     return v.toString(16);
   });
-};
-
-// Claus per localStorage
-const STORAGE_KEYS = {
-  USER: 'mua_app_user',
-  SPACES: 'mua_app_spaces',
-};
-
-// Funcions per guardar i carregar dades
-const saveToStorage = (key: string, data: any) => {
-  try {
-    localStorage.setItem(key, JSON.stringify(data));
-  } catch (error) {
-    console.error('Error guardant a localStorage:', error);
-  }
-};
-
-const loadFromStorage = <T,>(key: string, defaultValue: T): T => {
-  try {
-    const stored = localStorage.getItem(key);
-    if (!stored) return defaultValue;
-    
-    const parsed = JSON.parse(stored);
-    
-    // Convertir dates si és necessari
-    if (key === STORAGE_KEYS.SPACES && Array.isArray(parsed)) {
-      return parsed.map(space => ({
-        ...space,
-        createdAt: new Date(space.createdAt),
-        updatedAt: new Date(space.updatedAt),
-        measurements: space.measurements.map((m: any) => ({
-          ...m,
-          createdAt: new Date(m.createdAt),
-          updatedAt: new Date(m.updatedAt),
-        })),
-      })) as T;
-    }
-    
-    return parsed;
-  } catch (error) {
-    console.error('Error carregant de localStorage:', error);
-    return defaultValue;
-  }
 };
 
 interface AppContextType {
@@ -77,265 +56,399 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-// Demo data per quan no hi ha res guardat
-const createDemoData = (): Space[] => [
-  {
-    id: generateId(),
-    name: 'Kitchen',
-    icon: '🍳',
-    measurements: [],
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  },
-  {
-    id: generateId(),
-    name: 'Bedroom',
-    icon: '🛏️',
-    measurements: [],
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  },
-];
-
 export function AppProvider({ children }: { children: ReactNode }) {
-  // Carregar dades de localStorage en iniciar
-  const [user, setUser] = useState<User | null>(() => 
-    loadFromStorage(STORAGE_KEYS.USER, {
-      id: 'demo-user',
-      email: 'demo@example.com',
-      displayName: 'Demo User',
-    })
-  );
-  
-  const [spaces, setSpaces] = useState<Space[]>(() => {
-    const stored = loadFromStorage<Space[]>(STORAGE_KEYS.SPACES, []);
-    // Si no hi ha espais guardats, crear demo data
-    return stored.length > 0 ? stored : createDemoData();
-  });
-  
-  const [isLoading, setIsLoading] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [spaces, setSpaces] = useState<Space[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const isAuthenticated = user !== null;
 
-  // Guardar spaces cada vegada que canviïn
-  useEffect(() => {
-    saveToStorage(STORAGE_KEYS.SPACES, spaces);
-  }, [spaces]);
+  // Carregar spaces de Firestore
+  const loadSpaces = useCallback(async (userId: string) => {
+    try {
+      const spacesRef = collection(db, 'users', userId, 'spaces');
+      const q = query(spacesRef, orderBy('createdAt', 'desc'));
+      const querySnapshot = await getDocs(q);
+      
+      const loadedSpaces: Space[] = querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          name: data.name,
+          icon: data.icon,
+          measurements: data.measurements || [],
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date(),
+        };
+      });
+      
+      setSpaces(loadedSpaces);
+    } catch (error) {
+      console.error('Error carregant espais:', error);
+      setSpaces([]);
+    }
+  }, []);
 
-  // Guardar user cada vegada que canviï
+  // Escoltar canvis d'autenticació
   useEffect(() => {
-    saveToStorage(STORAGE_KEYS.USER, user);
-  }, [user]);
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        const appUser: User = {
+          id: firebaseUser.uid,
+          email: firebaseUser.email || '',
+          displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Usuari',
+          photoUrl: firebaseUser.photoURL || undefined,
+        };
+        setUser(appUser);
+        await loadSpaces(firebaseUser.uid);
+      } else {
+        setUser(null);
+        setSpaces([]);
+      }
+      setIsLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [loadSpaces]);
 
   const login = async (email: string, password: string) => {
-    setIsLoading(true);
-    // Simulate login - replace with Firebase
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    const newUser = {
-      id: generateId(),
-      email,
-      displayName: email.split('@')[0],
-    };
-    setUser(newUser);
-    setIsLoading(false);
+    try {
+      setIsLoading(true);
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch (error: any) {
+      console.error('Error login:', error);
+      throw new Error(error.message || 'Error al iniciar sessió');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const loginWithGoogle = async () => {
-    setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    const newUser = {
-      id: generateId(),
-      email: 'google@example.com',
-      displayName: 'Google User',
-    };
-    setUser(newUser);
-    setIsLoading(false);
+    try {
+      setIsLoading(true);
+      await signInWithPopup(auth, googleProvider);
+    } catch (error: any) {
+      console.error('Error Google login:', error);
+      throw new Error(error.message || 'Error al iniciar sessió amb Google');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const signup = async (email: string, password: string, displayName: string) => {
-    setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    const newUser = {
-      id: generateId(),
-      email,
-      displayName,
-    };
-    setUser(newUser);
-    setSpaces(createDemoData());
-    setIsLoading(false);
+    try {
+      setIsLoading(true);
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      
+      // Actualitzar el perfil amb el nom
+      await updateProfile(userCredential.user, {
+        displayName: displayName
+      });
+      
+      // Recarregar l'usuari per obtenir el displayName actualitzat
+      await userCredential.user.reload();
+    } catch (error: any) {
+      console.error('Error signup:', error);
+      throw new Error(error.message || 'Error al crear el compte');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const logout = () => {
-    setUser(null);
-    setSpaces([]);
-    // Esborrar dades de localStorage
-    localStorage.removeItem(STORAGE_KEYS.USER);
-    localStorage.removeItem(STORAGE_KEYS.SPACES);
+  const logout = async () => {
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error('Error logout:', error);
+    }
   };
 
-  const createSpace = useCallback((name: string, icon: string) => {
-    const newSpace: Space = {
-      id: generateId(),
-      name,
-      icon,
-      measurements: [],
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    setSpaces(prev => {
-      const updated = [...prev, newSpace];
-      return updated;
-    });
-  }, []);
-
-  const updateSpace = useCallback((spaceId: string, updates: Partial<Space>) => {
-    setSpaces(prev => {
-      const updated = prev.map(space =>
-        space.id === spaceId
-          ? { ...space, ...updates, updatedAt: new Date() }
-          : space
-      );
-      return updated;
-    });
-  }, []);
-
-  const deleteSpace = useCallback((spaceId: string) => {
-    setSpaces(prev => {
-      const updated = prev.filter(space => space.id !== spaceId);
-      return updated;
-    });
-  }, []);
-
-  const addMeasurement = useCallback(
-    (spaceId: string, measurement: Omit<Measurement, 'id' | 'createdAt' | 'updatedAt'>) => {
-      const newMeasurement: Measurement = {
-        ...measurement,
-        id: generateId(),
+  const createSpace = useCallback(async (name: string, icon: string) => {
+    if (!user) return;
+    
+    try {
+      const newSpace = {
+        name,
+        icon,
+        measurements: [],
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      };
+      
+      const spacesRef = collection(db, 'users', user.id, 'spaces');
+      const docRef = await addDoc(spacesRef, newSpace);
+      
+      // Afegir a l'estat local
+      setSpaces(prev => [{
+        id: docRef.id,
+        ...newSpace,
         createdAt: new Date(),
         updatedAt: new Date(),
-      };
-      setSpaces(prev => {
-        const updated = prev.map(space =>
-          space.id === spaceId
-            ? {
-                ...space,
-                measurements: [...space.measurements, newMeasurement],
-                updatedAt: new Date(),
-              }
-            : space
-        );
-        return updated;
+      }, ...prev]);
+    } catch (error) {
+      console.error('Error creant espai:', error);
+    }
+  }, [user]);
+
+  const updateSpace = useCallback(async (spaceId: string, updates: Partial<Space>) => {
+    if (!user) return;
+    
+    try {
+      const spaceRef = doc(db, 'users', user.id, 'spaces', spaceId);
+      await updateDoc(spaceRef, {
+        ...updates,
+        updatedAt: Timestamp.now(),
       });
+      
+      // Actualitzar estat local
+      setSpaces(prev =>
+        prev.map(space =>
+          space.id === spaceId
+            ? { ...space, ...updates, updatedAt: new Date() }
+            : space
+        )
+      );
+    } catch (error) {
+      console.error('Error actualitzant espai:', error);
+    }
+  }, [user]);
+
+  const deleteSpace = useCallback(async (spaceId: string) => {
+    if (!user) return;
+    
+    try {
+      const spaceRef = doc(db, 'users', user.id, 'spaces', spaceId);
+      await deleteDoc(spaceRef);
+      
+      // Actualitzar estat local
+      setSpaces(prev => prev.filter(space => space.id !== spaceId));
+    } catch (error) {
+      console.error('Error esborrant espai:', error);
+    }
+  }, [user]);
+
+  const addMeasurement = useCallback(
+    async (spaceId: string, measurement: Omit<Measurement, 'id' | 'createdAt' | 'updatedAt'>) => {
+      if (!user) return;
+      
+      try {
+        const space = spaces.find(s => s.id === spaceId);
+        if (!space) return;
+        
+        const newMeasurement: Measurement = {
+          ...measurement,
+          id: generateId(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+        
+        const updatedMeasurements = [...space.measurements, newMeasurement];
+        
+        const spaceRef = doc(db, 'users', user.id, 'spaces', spaceId);
+        await updateDoc(spaceRef, {
+          measurements: updatedMeasurements,
+          updatedAt: Timestamp.now(),
+        });
+        
+        // Actualitzar estat local
+        setSpaces(prev =>
+          prev.map(s =>
+            s.id === spaceId
+              ? { ...s, measurements: updatedMeasurements, updatedAt: new Date() }
+              : s
+          )
+        );
+      } catch (error) {
+        console.error('Error afegint mesura:', error);
+      }
     },
-    []
+    [user, spaces]
   );
 
   const updateMeasurement = useCallback(
-    (spaceId: string, measurementId: string, updates: Partial<Measurement>) => {
-      setSpaces(prev => {
-        const updated = prev.map(space =>
-          space.id === spaceId
-            ? {
-                ...space,
-                measurements: space.measurements.map(m =>
-                  m.id === measurementId
-                    ? { ...m, ...updates, updatedAt: new Date() }
-                    : m
-                ),
-                updatedAt: new Date(),
-              }
-            : space
+    async (spaceId: string, measurementId: string, updates: Partial<Measurement>) => {
+      if (!user) return;
+      
+      try {
+        const space = spaces.find(s => s.id === spaceId);
+        if (!space) return;
+        
+        const updatedMeasurements = space.measurements.map(m =>
+          m.id === measurementId
+            ? { ...m, ...updates, updatedAt: new Date() }
+            : m
         );
-        return updated;
-      });
+        
+        const spaceRef = doc(db, 'users', user.id, 'spaces', spaceId);
+        await updateDoc(spaceRef, {
+          measurements: updatedMeasurements,
+          updatedAt: Timestamp.now(),
+        });
+        
+        // Actualitzar estat local
+        setSpaces(prev =>
+          prev.map(s =>
+            s.id === spaceId
+              ? { ...s, measurements: updatedMeasurements, updatedAt: new Date() }
+              : s
+          )
+        );
+      } catch (error) {
+        console.error('Error actualitzant mesura:', error);
+      }
     },
-    []
+    [user, spaces]
   );
 
-  const deleteMeasurement = useCallback((spaceId: string, measurementId: string) => {
-    setSpaces(prev => {
-      const updated = prev.map(space =>
-        space.id === spaceId
-          ? {
-              ...space,
-              measurements: space.measurements.filter(m => m.id !== measurementId),
-              updatedAt: new Date(),
-            }
-          : space
-      );
-      return updated;
-    });
-  }, []);
+  const deleteMeasurement = useCallback(
+    async (spaceId: string, measurementId: string) => {
+      if (!user) return;
+      
+      try {
+        const space = spaces.find(s => s.id === spaceId);
+        if (!space) return;
+        
+        const updatedMeasurements = space.measurements.filter(m => m.id !== measurementId);
+        
+        const spaceRef = doc(db, 'users', user.id, 'spaces', spaceId);
+        await updateDoc(spaceRef, {
+          measurements: updatedMeasurements,
+          updatedAt: Timestamp.now(),
+        });
+        
+        // Actualitzar estat local
+        setSpaces(prev =>
+          prev.map(s =>
+            s.id === spaceId
+              ? { ...s, measurements: updatedMeasurements, updatedAt: new Date() }
+              : s
+          )
+        );
+      } catch (error) {
+        console.error('Error esborrant mesura:', error);
+      }
+    },
+    [user, spaces]
+  );
 
   const addBox = useCallback(
-    (spaceId: string, measurementId: string, box: Omit<Box3D, 'id'>) => {
-      const newBox: Box3D = { ...box, id: generateId() };
-      setSpaces(prev => {
-        const updated = prev.map(space =>
-          space.id === spaceId
-            ? {
-                ...space,
-                measurements: space.measurements.map(m =>
-                  m.id === measurementId
-                    ? { ...m, boxes: [...m.boxes, newBox], updatedAt: new Date() }
-                    : m
-                ),
-                updatedAt: new Date(),
-              }
-            : space
+    async (spaceId: string, measurementId: string, box: Omit<Box3D, 'id'>) => {
+      if (!user) return;
+      
+      try {
+        const space = spaces.find(s => s.id === spaceId);
+        if (!space) return;
+        
+        const updatedMeasurements = space.measurements.map(m => {
+          if (m.id === measurementId) {
+            const newBox: Box3D = { ...box, id: generateId() };
+            return { ...m, boxes: [...m.boxes, newBox], updatedAt: new Date() };
+          }
+          return m;
+        });
+        
+        const spaceRef = doc(db, 'users', user.id, 'spaces', spaceId);
+        await updateDoc(spaceRef, {
+          measurements: updatedMeasurements,
+          updatedAt: Timestamp.now(),
+        });
+        
+        // Actualitzar estat local
+        setSpaces(prev =>
+          prev.map(s =>
+            s.id === spaceId
+              ? { ...s, measurements: updatedMeasurements, updatedAt: new Date() }
+              : s
+          )
         );
-        return updated;
-      });
+      } catch (error) {
+        console.error('Error afegint caixa:', error);
+      }
     },
-    []
+    [user, spaces]
   );
 
   const updateBox = useCallback(
-    (spaceId: string, measurementId: string, boxId: string, updates: Partial<Box3D>) => {
-      setSpaces(prev => {
-        const updated = prev.map(space =>
-          space.id === spaceId
-            ? {
-                ...space,
-                measurements: space.measurements.map(m =>
-                  m.id === measurementId
-                    ? {
-                        ...m,
-                        boxes: m.boxes.map(b =>
-                          b.id === boxId ? { ...b, ...updates } : b
-                        ),
-                        updatedAt: new Date(),
-                      }
-                    : m
-                ),
-                updatedAt: new Date(),
-              }
-            : space
-        );
-        return updated;
-      });
-    },
-    []
-  );
-
-  const deleteBox = useCallback((spaceId: string, measurementId: string, boxId: string) => {
-    setSpaces(prev => {
-      const updated = prev.map(space =>
-        space.id === spaceId
-          ? {
-              ...space,
-              measurements: space.measurements.map(m =>
-                m.id === measurementId
-                  ? { ...m, boxes: m.boxes.filter(b => b.id !== boxId), updatedAt: new Date() }
-                  : m
+    async (spaceId: string, measurementId: string, boxId: string, updates: Partial<Box3D>) => {
+      if (!user) return;
+      
+      try {
+        const space = spaces.find(s => s.id === spaceId);
+        if (!space) return;
+        
+        const updatedMeasurements = space.measurements.map(m => {
+          if (m.id === measurementId) {
+            return {
+              ...m,
+              boxes: m.boxes.map(b =>
+                b.id === boxId ? { ...b, ...updates } : b
               ),
               updatedAt: new Date(),
-            }
-          : space
-      );
-      return updated;
-    });
-  }, []);
+            };
+          }
+          return m;
+        });
+        
+        const spaceRef = doc(db, 'users', user.id, 'spaces', spaceId);
+        await updateDoc(spaceRef, {
+          measurements: updatedMeasurements,
+          updatedAt: Timestamp.now(),
+        });
+        
+        // Actualitzar estat local
+        setSpaces(prev =>
+          prev.map(s =>
+            s.id === spaceId
+              ? { ...s, measurements: updatedMeasurements, updatedAt: new Date() }
+              : s
+          )
+        );
+      } catch (error) {
+        console.error('Error actualitzant caixa:', error);
+      }
+    },
+    [user, spaces]
+  );
+
+  const deleteBox = useCallback(
+    async (spaceId: string, measurementId: string, boxId: string) => {
+      if (!user) return;
+      
+      try {
+        const space = spaces.find(s => s.id === spaceId);
+        if (!space) return;
+        
+        const updatedMeasurements = space.measurements.map(m => {
+          if (m.id === measurementId) {
+            return {
+              ...m,
+              boxes: m.boxes.filter(b => b.id !== boxId),
+              updatedAt: new Date(),
+            };
+          }
+          return m;
+        });
+        
+        const spaceRef = doc(db, 'users', user.id, 'spaces', spaceId);
+        await updateDoc(spaceRef, {
+          measurements: updatedMeasurements,
+          updatedAt: Timestamp.now(),
+        });
+        
+        // Actualitzar estat local
+        setSpaces(prev =>
+          prev.map(s =>
+            s.id === spaceId
+              ? { ...s, measurements: updatedMeasurements, updatedAt: new Date() }
+              : s
+          )
+        );
+      } catch (error) {
+        console.error('Error esborrant caixa:', error);
+      }
+    },
+    [user, spaces]
+  );
 
   const getSpace = useCallback((spaceId: string) => {
     return spaces.find(s => s.id === spaceId);
