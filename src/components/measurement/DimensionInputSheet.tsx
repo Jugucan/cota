@@ -3,6 +3,7 @@ import { Box3D, BOX_COLORS } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Sheet,
   SheetContent,
@@ -16,7 +17,7 @@ interface DimensionInputSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   box: Box3D | null;
-  onSave: (dimensions: { width: number; height: number; depth: number }, label: string, color: string) => void;
+  onSave: (dimensions: { width: number; height: number; depth: number }, label: string, color: string, notes: string) => void;
 }
 
 export function DimensionInputSheet({
@@ -30,6 +31,7 @@ export function DimensionInputSheet({
   const [depth, setDepth] = useState('');
   const [label, setLabel] = useState('');
   const [color, setColor] = useState(BOX_COLORS[0].name);
+  const [notes, setNotes] = useState('');
 
   useEffect(() => {
     if (box) {
@@ -38,6 +40,7 @@ export function DimensionInputSheet({
       setDepth(box.dimensions.depth > 0 ? String(box.dimensions.depth) : '');
       setLabel(box.label);
       setColor(box.color);
+      setNotes(box.notes || '');
     }
   }, [box]);
 
@@ -49,7 +52,8 @@ export function DimensionInputSheet({
         depth: parseFloat(depth) || 0,
       },
       label,
-      color
+      color,
+      notes
     );
     onOpenChange(false);
   };
@@ -58,12 +62,12 @@ export function DimensionInputSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent 
         side="bottom" 
-        className="h-auto max-h-[85vh] rounded-t-3xl px-4 sm:px-6 pb-6 overflow-y-auto"
+        className="h-auto max-h-[90vh] rounded-t-3xl px-4 sm:px-6 pb-6 overflow-y-auto"
       >
         <SheetHeader className="text-left pb-4 pt-2">
           <SheetTitle className="font-display text-xl">Editar mesura</SheetTitle>
           <SheetDescription className="text-sm">
-            Introdueix les dimensions reals d'aquest objecte
+            Introdueix les dimensions reals i informació d'aquest objecte
           </SheetDescription>
         </SheetHeader>
 
@@ -119,6 +123,18 @@ export function DimensionInputSheet({
                 />
               </div>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="notes" className="text-base font-medium">Notes/Anotacions (opcional)</Label>
+            <Textarea
+              id="notes"
+              placeholder="Afegeix informació addicional sobre aquest objecte..."
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="min-h-[80px] text-base resize-none"
+              rows={3}
+            />
           </div>
 
           <div className="space-y-3">
