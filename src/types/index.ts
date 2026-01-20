@@ -13,6 +13,7 @@ export interface Box3D {
   };
   label: string;
   color: string;
+  notes?: string; // AFEGEIX AQUESTA LÍNIA
 }
 
 export interface Measurement {
