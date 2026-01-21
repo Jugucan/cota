@@ -289,14 +289,24 @@ export function SpaceDetail() {
                     boxes={selectedMeasurement.boxes}
                     selectedBoxId={selectedBoxId}
                     onSelectBox={(boxId) => {
-                      // NOMÉS seleccionem la caixa, NO obrim la finestra
                       setSelectedBoxId(boxId);
                     }}
                     onUpdateBox={handleUpdateBoxVertices}
                     onAddBox={handleAddBox}
+                    readOnly={false}
                   />
                 </div>
               </CardContent>
+              {/* Botó afegir cub fora de la imatge */}
+              <div className="p-4 border-t border-border bg-muted/30">
+                <Button 
+                  onClick={handleAddBox}
+                  variant="hero"
+                  className="w-full h-12 text-base font-semibold"
+                >
+                  + Afegir cub
+                </Button>
+              </div>
             </Card>
 
             {/* Measurement Summary */}
