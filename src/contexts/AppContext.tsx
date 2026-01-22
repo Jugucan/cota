@@ -372,39 +372,58 @@ export function AppProvider({ children }: { children: ReactNode }) {
     async (spaceId: string, measurementId: string, boxId: string, updates: Partial<Box3D>) => {
       if (!user) return;
       
-      try {
-        const space = spaces.find(s => s.id === spaceId);
-        if (!space) return;
-        
-        const updatedMeasurements = space.measurements.map(m => {
-          if (m.id === measurementId) {
-            return {
-              ...m,
-              boxes: m.boxes.map(b =>
-                b.id === boxId ? { ...b, ...updates } : b
-              ),
-              updatedAt: new Date(),
-            };
-          }
-          return m;
-        });
-        
-        const spaceRef = doc(db, 'users', user.id, 'spaces', spaceId);
-        await updateDoc(spaceRef, {
-          measurements: updatedMeasurements,
-          updatedAt: Timestamp.now(),
-        });
-        
-        // Actualitzar estat local
-        setSpaces(prev =>
-          prev.map(s =>
-            s.id === spaceId
-              ? { ...s, measurements: updatedMeasurements, updatedAt: new Date() }
-              : s
-          )
-        );
-      } catch (error) {
-        console.error('Error actualitzant caixa:', error);
+      // Actualitzar l'estat local IMMEDIATAMENT
+      setSpaces(prev =>
+        prev.map(s =>
+          s.id === spaceId
+            ? {
+                ...s,
+                measurements: s.measurements.map(m => {
+                  if (m.id === measurementId) {
+                    return {
+                      ...m,
+                      boxes: m.boxes.map(b =>
+                        b.id === boxId ? { ...b, ...updates } : b
+                      ),
+                      updatedAt: new Date(),
+                    };
+                  }
+                  return m;
+                }),
+                updatedAt: new Date(),
+              }
+            : s
+        )
+      );
+      
+      // Actualitzar Firestore només si NO són vèrtex (per evitar actualitzacions massa freqüents)
+      // Si són vèrtex, esperem que es desi amb les dimensions
+      if (!updates.vertices) {
+        try {
+          const space = spaces.find(s => s.id === spaceId);
+          if (!space) return;
+          
+          const updatedMeasurements = space.measurements.map(m => {
+            if (m.id === measurementId) {
+              return {
+                ...m,
+                boxes: m.boxes.map(b =>
+                  b.id === boxId ? { ...b, ...updates } : b
+                ),
+                updatedAt: new Date(),
+              };
+            }
+            return m;
+          });
+          
+          const spaceRef = doc(db, 'users', user.id, 'spaces', spaceId);
+          await updateDoc(spaceRef, {
+            measurements: updatedMeasurements,
+            updatedAt: Timestamp.now(),
+          });
+        } catch (error) {
+          console.error('Error actualitzant caixa:', error);
+        }
       }
     },
     [user, spaces]
