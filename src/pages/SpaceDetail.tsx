@@ -268,12 +268,7 @@ export function SpaceDetail() {
 
         {/* Main Content */}
         {selectedMeasurement ? (
-          <motion.div
-            key={selectedMeasurement.id}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="space-y-6"
-          >
+          <div className="space-y-6">
             {/* Photo Title & Actions */}
             <div className="flex items-center justify-between">
               <h2 className="font-display text-lg font-semibold text-foreground">
@@ -355,7 +350,7 @@ export function SpaceDetail() {
                 }}
               />
             </div>
-          </motion.div>
+          </div>
         ) : (
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
