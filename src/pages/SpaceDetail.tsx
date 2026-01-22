@@ -27,11 +27,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { doc, updateDoc, Timestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 export function SpaceDetail() {
   const { spaceId } = useParams<{ spaceId: string }>();
   const navigate = useNavigate();
-  const { spaces, getSpace, addMeasurement, updateMeasurement, deleteMeasurement, addBox, updateBox, deleteBox } = useApp();
+  const { spaces, user, getSpace, addMeasurement, updateMeasurement, deleteMeasurement, addBox, updateBox, deleteBox } = useApp();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Utilitzar directament l'space dels spaces per tenir sempre les dades actualitzades
@@ -132,11 +134,34 @@ export function SpaceDetail() {
     }
   };
 
-  const handleSaveDimensions = (dimensions: { width: number; height: number; depth: number }, label: string, color: string, notes: string) => {
-  if (spaceId && selectedMeasurement && selectedBoxId) {
-    updateBox(spaceId, selectedMeasurement.id, selectedBoxId, { dimensions, label, color, notes });
-  }
-};
+  const handleSaveDimensions = async (dimensions: { width: number; height: number; depth: number }, label: string, color: string, notes: string) => {
+    if (spaceId && selectedMeasurement && selectedBoxId) {
+      // Primer actualitzar dimensions, label, color i notes
+      await updateBox(spaceId, selectedMeasurement.id, selectedBoxId, { dimensions, label, color, notes });
+      
+      // Ara guardar també els vèrtex actuals a Firestore
+      const currentBox = selectedMeasurement.boxes.find(b => b.id === selectedBoxId);
+      if (currentBox && user) {
+        try {
+          const spaceRef = doc(db, 'users', user.id, 'spaces', spaceId);
+          const updatedMeasurements = selectedMeasurement.boxes.map(b =>
+            b.id === selectedBoxId ? { ...b, vertices: currentBox.vertices } : b
+          );
+          
+          await updateDoc(spaceRef, {
+            measurements: space?.measurements.map(m =>
+              m.id === selectedMeasurement.id
+                ? { ...m, boxes: updatedMeasurements }
+                : m
+            ),
+            updatedAt: Timestamp.now(),
+          });
+        } catch (error) {
+          console.error('Error guardant vèrtex:', error);
+        }
+      }
+    }
+  };
 
   const handleDeleteMeasurement = () => {
     if (spaceId && measurementToDelete) {
