@@ -40,8 +40,8 @@ export function SpaceCard({ space, onClick, onEdit, onDelete }: SpaceCardProps) 
                 {space.name}
               </h3>
               <p className="text-sm text-muted-foreground">
-                {measurementCount} photo{measurementCount !== 1 ? 's' : ''}
-                {totalBoxes > 0 && ` • ${totalBoxes} measurement${totalBoxes !== 1 ? 's' : ''}`}
+                {measurementCount} foto{measurementCount !== 1 ? 's' : ''}
+                {totalBoxes > 0 && ` • ${totalBoxes} mide${totalBoxes !== 1 ? 's' : 'a'}`}
               </p>
             </div>
           </div>
@@ -55,14 +55,14 @@ export function SpaceCard({ space, onClick, onEdit, onDelete }: SpaceCardProps) 
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(); }}>
                 <Edit className="mr-2 h-4 w-4" />
-                Edit
+                Editar
               </DropdownMenuItem>
               <DropdownMenuItem 
                 onClick={(e) => { e.stopPropagation(); onDelete(); }}
                 className="text-destructive"
               >
                 <Trash2 className="mr-2 h-4 w-4" />
-                Delete
+                Esborrar
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -93,7 +93,7 @@ export function SpaceCard({ space, onClick, onEdit, onDelete }: SpaceCardProps) 
             </div>
           ) : (
             <div className="h-20 flex items-center justify-center rounded-lg border-2 border-dashed border-border">
-              <p className="text-sm text-muted-foreground">No photos yet</p>
+              <p className="text-sm text-muted-foreground">Encara no hi ha fotos</p>
             </div>
           )}
         </CardContent>
