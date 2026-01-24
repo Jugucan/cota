@@ -181,6 +181,16 @@ export function SpaceDetail() {
     }
   };
 
+  const handleToggleVisibility = (boxId: string) => {
+  if (spaceId && selectedMeasurement) {
+    const box = selectedMeasurement.boxes.find(b => b.id === boxId);
+    if (box) {
+      const newVisibility = box.visible === false ? true : false;
+      updateBox(spaceId, selectedMeasurement.id, boxId, { visible: newVisibility });
+    }
+  }
+};
+
   const handleRename = () => {
     if (spaceId && selectedMeasurement && newName.trim()) {
       updateMeasurement(spaceId, selectedMeasurement.id, { name: newName.trim() });
@@ -340,7 +350,6 @@ export function SpaceDetail() {
                 boxes={selectedMeasurement.boxes}
                 selectedBoxId={selectedBoxId}
                 onSelectBox={(boxId) => {
-                  // AQUÍ SÍ que obrim la finestra perquè l'usuari ha clicat a la llista
                   setSelectedBoxId(boxId);
                   setDimensionSheetOpen(true);
                 }}
@@ -348,6 +357,7 @@ export function SpaceDetail() {
                   setBoxToDelete(boxId);
                   setDeleteDialogOpen(true);
                 }}
+                onToggleVisibility={handleToggleVisibility}
               />
             </div>
           </div>
