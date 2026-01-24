@@ -318,7 +318,7 @@ function drawBox3D(
 
   // Draw measurements if available
   if (box.dimensions.width > 0 || box.dimensions.height > 0 || box.dimensions.depth > 0) {
-    drawMeasurements(ctx, box, v);
+    drawMeasurements(ctx, box, v, ctx.canvas.width, ctx.canvas.height);
   }
 
   // Draw label
@@ -328,7 +328,9 @@ function drawBox3D(
 function drawMeasurements(
   ctx: CanvasRenderingContext2D,
   box: Box3D,
-  v: { x: number; y: number }[]
+  v: { x: number; y: number }[],
+  canvasWidth: number,
+  canvasHeight: number
 ) {
   const { width, height, depth } = box.dimensions;
 
@@ -337,44 +339,94 @@ function drawMeasurements(
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
+  const margin = 50; // Marge mínim des de les vores del canvas
+
   // Width (bottom edge)
   if (width > 0) {
-    const midX = (v[0].x + v[1].x) / 2;
-    const midY = (v[0].y + v[1].y) / 2 + 20;
-    drawTextWithBackground(ctx, `${width}cm`, midX, midY);
+    let midX = (v[0].x + v[1].x) / 2;
+    let midY = (v[0].y + v[1].y) / 2 + 20;
+    
+    // Ajustar si surt fora per baix
+    if (midY > canvasHeight - margin) {
+      midY = (v[0].y + v[1].y) / 2 - 20;
+    }
+    
+    drawTextWithBackground(ctx, `${width}cm`, midX, midY, canvasWidth, canvasHeight, margin);
   }
 
   // Height (left edge)
   if (height > 0) {
-    const midX = (v[0].x + v[3].x) / 2 - 25;
-    const midY = (v[0].y + v[3].y) / 2;
-    drawTextWithBackground(ctx, `${height}cm`, midX, midY);
+    let midX = (v[0].x + v[3].x) / 2 - 25;
+    let midY = (v[0].y + v[3].y) / 2;
+    
+    // Ajustar si surt fora per l'esquerra
+    if (midX < margin) {
+      midX = (v[0].x + v[3].x) / 2 + 25;
+    }
+    
+    drawTextWithBackground(ctx, `${height}cm`, midX, midY, canvasWidth, canvasHeight, margin);
   }
 
   // Depth (diagonal edge)
   if (depth > 0) {
-    const midX = (v[0].x + v[4].x) / 2 + 20;
-    const midY = (v[0].y + v[4].y) / 2 - 10;
-    drawTextWithBackground(ctx, `${depth}cm`, midX, midY);
+    let midX = (v[0].x + v[4].x) / 2 + 20;
+    let midY = (v[0].y + v[4].y) / 2 - 10;
+    
+    // Ajustar si surt fora per la dreta
+    if (midX > canvasWidth - margin) {
+      midX = (v[0].x + v[4].x) / 2 - 20;
+    }
+    
+    // Ajustar si surt fora per dalt
+    if (midY < margin) {
+      midY = (v[0].y + v[4].y) / 2 + 20;
+    }
+    
+    drawTextWithBackground(ctx, `${depth}cm`, midX, midY, canvasWidth, canvasHeight, margin);
   }
 }
 
-function drawTextWithBackground(ctx: CanvasRenderingContext2D, text: string, x: number, y: number) {
+function drawTextWithBackground(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  canvasWidth: number,
+  canvasHeight: number,
+  margin: number
+) {
   // Mesurar el text
   const metrics = ctx.measureText(text);
   const textWidth = metrics.width;
-  const textHeight = 14; // Altura aproximada del text
+  const textHeight = 14;
   const padding = 6;
+  
+  const rectWidth = textWidth + padding * 2;
+  const rectHeight = textHeight + padding * 2;
+  
+  // Ajustar posició X si surt fora
+  let finalX = x;
+  if (x - rectWidth / 2 < margin) {
+    finalX = margin + rectWidth / 2;
+  } else if (x + rectWidth / 2 > canvasWidth - margin) {
+    finalX = canvasWidth - margin - rectWidth / 2;
+  }
+  
+  // Ajustar posició Y si surt fora
+  let finalY = y;
+  if (y - rectHeight / 2 < margin) {
+    finalY = margin + rectHeight / 2;
+  } else if (y + rectHeight / 2 > canvasHeight - margin) {
+    finalY = canvasHeight - margin - rectHeight / 2;
+  }
   
   // Dibuixar fons semi-transparent
   ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
-  ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.15)';
   ctx.lineWidth = 1;
   
-  const rectX = x - textWidth / 2 - padding;
-  const rectY = y - textHeight / 2 - padding;
-  const rectWidth = textWidth + padding * 2;
-  const rectHeight = textHeight + padding * 2;
+  const rectX = finalX - rectWidth / 2;
+  const rectY = finalY - rectHeight / 2;
   
   // Rectangle arrodonit
   ctx.beginPath();
@@ -394,7 +446,7 @@ function drawTextWithBackground(ctx: CanvasRenderingContext2D, text: string, x: 
   
   // Dibuixar text
   ctx.fillStyle = '#1a1a1a';
-  ctx.fillText(text, x, y);
+  ctx.fillText(text, finalX, finalY);
 }
 
 function isPointInBox(pos: { x: number; y: number }, box: Box3D): boolean {
