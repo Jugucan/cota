@@ -49,7 +49,7 @@ export function MeasurementSummary({
                   />
                   <div className="flex-1 min-w-0">
                     <h4 className="font-semibold text-sm text-foreground mb-1">
-                      {box.label || `Caixa ${index + 1}`}
+                      {box.label || `Cub ${index + 1}`}
                     </h4>
                     {hasDimensions ? (
                       <p className="text-sm text-muted-foreground">
